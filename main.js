@@ -9,11 +9,9 @@ function createWindow() {
     height: 900,
     minWidth: 800,
     minHeight: 600,
-    frame: false,
-    transparent: false,
-    backgroundColor: '#fff',
-    titleBarStyle: 'hidden',
-    trafficLightPosition: { x: -100, y: -100 }, // Hide default traffic lights
+    titleBarStyle: 'hiddenInset', // Native macOS traffic lights
+    trafficLightPosition: { x: 12, y: 12 },
+    backgroundColor: '#dee1e6',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -27,7 +25,7 @@ function createWindow() {
 
   mainWindow.loadFile('index.html');
 
-  // Window controls
+  // Window controls (for non-macOS)
   ipcMain.on('window-minimize', () => {
     mainWindow.minimize();
   });

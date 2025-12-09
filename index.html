@@ -10,7 +10,6 @@
 
     :root {
       --toolbar-bg: #dee1e6;
-      --toolbar-bg-dark: #35363a;
       --tab-bg: #fff;
       --tab-bg-inactive: transparent;
       --tab-text: #202124;
@@ -21,7 +20,6 @@
       --url-text-secondary: #5f6368;
       --border-color: #dadce0;
       --accent: #1a73e8;
-      --accent-hover: #1967d2;
       --icon-color: #5f6368;
       --icon-hover-bg: rgba(95, 99, 104, 0.1);
       --new-tab-bg: #fff;
@@ -48,7 +46,7 @@
     /* Tab Bar */
     .tab-bar {
       -webkit-app-region: drag;
-      height: 34px;
+      height: 38px;
       background: var(--toolbar-bg);
       display: flex;
       align-items: flex-end;
@@ -56,11 +54,25 @@
       gap: 0;
     }
 
+    .tabs-container {
+      display: flex;
+      align-items: flex-end;
+      flex: 1;
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-app-region: no-drag;
+    }
+
+    .tabs-container::-webkit-scrollbar {
+      display: none;
+    }
+
     .tab {
       -webkit-app-region: no-drag;
-      height: 28px;
-      min-width: 120px;
+      height: 32px;
+      min-width: 60px;
       max-width: 240px;
+      flex: 1;
       background: var(--tab-bg-inactive);
       border-radius: 8px 8px 0 0;
       display: flex;
@@ -69,6 +81,7 @@
       cursor: pointer;
       position: relative;
       transition: background 0.1s;
+      margin-right: 1px;
     }
 
     .tab.active {
@@ -76,17 +89,24 @@
     }
 
     .tab:not(.active):hover {
-      background: rgba(255, 255, 255, 0.4);
+      background: rgba(255, 255, 255, 0.5);
     }
 
     .tab-favicon {
       width: 16px;
       height: 16px;
+      min-width: 16px;
       margin-right: 8px;
       border-radius: 2px;
       display: flex;
       align-items: center;
       justify-content: center;
+    }
+
+    .tab-favicon img {
+      width: 16px;
+      height: 16px;
+      border-radius: 2px;
     }
 
     .tab-favicon svg {
@@ -109,8 +129,9 @@
     }
 
     .tab-close {
-      width: 16px;
-      height: 16px;
+      width: 18px;
+      height: 18px;
+      min-width: 18px;
       border: none;
       background: transparent;
       border-radius: 50%;
@@ -120,9 +141,11 @@
       cursor: pointer;
       opacity: 0;
       transition: all 0.1s;
+      margin-left: 4px;
     }
 
-    .tab:hover .tab-close {
+    .tab:hover .tab-close,
+    .tab.active .tab-close {
       opacity: 1;
     }
 
@@ -140,6 +163,7 @@
       -webkit-app-region: no-drag;
       width: 28px;
       height: 28px;
+      min-width: 28px;
       border: none;
       background: transparent;
       border-radius: 50%;
@@ -148,6 +172,7 @@
       justify-content: center;
       cursor: pointer;
       margin-left: 4px;
+      margin-bottom: 4px;
     }
 
     .new-tab-btn:hover {
@@ -160,30 +185,7 @@
       color: var(--icon-color);
     }
 
-    /* Window Controls (macOS) */
-    .window-controls {
-      -webkit-app-region: no-drag;
-      position: absolute;
-      top: 10px;
-      left: 12px;
-      display: flex;
-      gap: 8px;
-      z-index: 100;
-    }
-
-    .window-btn {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      border: none;
-      cursor: pointer;
-      transition: filter 0.1s;
-    }
-
-    .window-btn.close { background: #ff5f57; }
-    .window-btn.minimize { background: #febc2e; }
-    .window-btn.maximize { background: #28c840; }
-    .window-btn:hover { filter: brightness(1.1); }
+    /* Window Controls - using native macOS traffic lights */
 
     /* Navigation Bar */
     .nav-bar {
@@ -258,10 +260,6 @@
     .url-icon svg {
       width: 16px;
       height: 16px;
-    }
-
-    .url-icon.secure svg {
-      color: var(--icon-color);
     }
 
     .url-input {
@@ -350,9 +348,22 @@
       background: var(--new-tab-bg);
     }
 
-    webview {
+    .webviews-container {
       flex: 1;
-      background: #fff;
+      position: relative;
+    }
+
+    .webviews-container webview {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
+    }
+
+    .webviews-container webview.active {
+      display: flex;
     }
 
     /* Loading Bar */
@@ -384,16 +395,20 @@
 
     /* New Tab Page */
     .new-tab-page {
-      flex: 1;
-      display: flex;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: none;
       flex-direction: column;
       align-items: center;
       padding-top: 100px;
       background: var(--new-tab-bg);
     }
 
-    .new-tab-page.hidden {
-      display: none;
+    .new-tab-page.active {
+      display: flex;
     }
 
     .google-logo {
@@ -568,29 +583,12 @@
   </style>
 </head>
 <body>
-  <!-- Window Controls -->
-  <div class="window-controls">
-    <button class="window-btn close" id="closeBtn"></button>
-    <button class="window-btn minimize" id="minimizeBtn"></button>
-    <button class="window-btn maximize" id="maximizeBtn"></button>
-  </div>
-
   <!-- Tab Bar -->
   <div class="tab-bar">
-    <div class="tab active" id="currentTab">
-      <div class="tab-favicon" id="tabFavicon">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-        </svg>
-      </div>
-      <span class="tab-title" id="tabTitle">New Tab</span>
-      <button class="tab-close">
-        <svg viewBox="0 0 24 24" fill="currentColor">
-          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-        </svg>
-      </button>
+    <div class="tabs-container" id="tabsContainer">
+      <!-- Tabs will be dynamically added here -->
     </div>
-    <button class="new-tab-btn" title="New Tab">
+    <button class="new-tab-btn" id="newTabBtn" title="New Tab">
       <svg viewBox="0 0 24 24" fill="currentColor">
         <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
       </svg>
@@ -657,8 +655,8 @@
   <div class="browser-content">
     <div class="loading-bar" id="loadingBar"></div>
     
-    <!-- New Tab Page -->
-    <div class="new-tab-page" id="newTabPage">
+    <!-- New Tab Page Template -->
+    <div class="new-tab-page" id="newTabPageTemplate">
       <div class="google-logo">
         <svg viewBox="0 0 272 92" xmlns="http://www.w3.org/2000/svg">
           <path d="M115.75 47.18c0 12.77-9.99 22.18-22.25 22.18s-22.25-9.41-22.25-22.18C71.25 34.32 81.24 25 93.5 25s22.25 9.32 22.25 22.18zm-9.74 0c0-7.98-5.79-13.44-12.51-13.44S80.99 39.2 80.99 47.18c0 7.9 5.79 13.44 12.51 13.44s12.51-5.55 12.51-13.44z" fill="#EA4335"/>
@@ -670,67 +668,69 @@
         </svg>
       </div>
       
-      <div class="search-box" id="searchBox">
+      <div class="search-box">
         <svg viewBox="0 0 24 24" fill="currentColor">
           <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
         </svg>
-        <input type="text" id="searchInput" placeholder="Search Google or type a URL">
+        <input type="text" class="search-input" placeholder="Search Google or type a URL">
       </div>
 
       <div class="shortcuts">
         <div class="shortcut" data-url="https://mail.google.com">
           <div class="shortcut-icon">
-            <img src="https://www.google.com/favicon.ico" alt="" onerror="this.style.display='none'">
+            <img src="https://www.google.com/favicon.ico" alt="">
           </div>
           <span class="shortcut-name">Gmail</span>
         </div>
         <div class="shortcut" data-url="https://youtube.com">
           <div class="shortcut-icon">
-            <img src="https://www.youtube.com/favicon.ico" alt="" onerror="this.style.display='none'">
+            <img src="https://www.youtube.com/favicon.ico" alt="">
           </div>
           <span class="shortcut-name">YouTube</span>
         </div>
         <div class="shortcut" data-url="https://drive.google.com">
           <div class="shortcut-icon">
-            <img src="https://www.google.com/favicon.ico" alt="" onerror="this.style.display='none'">
+            <img src="https://www.google.com/favicon.ico" alt="">
           </div>
           <span class="shortcut-name">Drive</span>
         </div>
         <div class="shortcut" data-url="https://maps.google.com">
           <div class="shortcut-icon">
-            <img src="https://www.google.com/favicon.ico" alt="" onerror="this.style.display='none'">
+            <img src="https://www.google.com/favicon.ico" alt="">
           </div>
           <span class="shortcut-name">Maps</span>
         </div>
         <div class="shortcut" data-url="https://news.google.com">
           <div class="shortcut-icon">
-            <img src="https://www.google.com/favicon.ico" alt="" onerror="this.style.display='none'">
+            <img src="https://www.google.com/favicon.ico" alt="">
           </div>
           <span class="shortcut-name">News</span>
         </div>
         <div class="shortcut" data-url="https://translate.google.com">
           <div class="shortcut-icon">
-            <img src="https://www.google.com/favicon.ico" alt="" onerror="this.style.display='none'">
+            <img src="https://www.google.com/favicon.ico" alt="">
           </div>
           <span class="shortcut-name">Translate</span>
         </div>
         <div class="shortcut" data-url="https://calendar.google.com">
           <div class="shortcut-icon">
-            <img src="https://www.google.com/favicon.ico" alt="" onerror="this.style.display='none'">
+            <img src="https://www.google.com/favicon.ico" alt="">
           </div>
           <span class="shortcut-name">Calendar</span>
         </div>
         <div class="shortcut" data-url="https://photos.google.com">
           <div class="shortcut-icon">
-            <img src="https://www.google.com/favicon.ico" alt="" onerror="this.style.display='none'">
+            <img src="https://www.google.com/favicon.ico" alt="">
           </div>
           <span class="shortcut-name">Photos</span>
         </div>
       </div>
     </div>
 
-    <!-- Webview -->
-    <webview id="webview" style="display: none;" allowpopups></webview>
+    <!-- Webviews Container -->
+    <div class="webviews-container" id="webviewsContainer">
+      <!-- Webviews will be dynamically added here -->
+    </div>
   </div>
 
   <script src="renderer.js"></script>

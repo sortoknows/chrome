@@ -1,24 +1,23 @@
+// Tab Management
+let tabs = [];
+let activeTabId = null;
+let tabIdCounter = 0;
+
 // DOM Elements
-const webview = document.getElementById('webview');
+const tabsContainer = document.getElementById('tabsContainer');
+const webviewsContainer = document.getElementById('webviewsContainer');
+const newTabBtn = document.getElementById('newTabBtn');
 const urlInput = document.getElementById('urlInput');
-const searchInput = document.getElementById('searchInput');
 const backBtn = document.getElementById('backBtn');
 const forwardBtn = document.getElementById('forwardBtn');
 const reloadBtn = document.getElementById('reloadBtn');
 const homeBtn = document.getElementById('homeBtn');
-const closeBtn = document.getElementById('closeBtn');
-const minimizeBtn = document.getElementById('minimizeBtn');
-const maximizeBtn = document.getElementById('maximizeBtn');
 const menuBtn = document.getElementById('menuBtn');
 const settingsDropdown = document.getElementById('settingsDropdown');
 const protectionToggle = document.getElementById('protectionToggle');
 const loadingBar = document.getElementById('loadingBar');
-const newTabPage = document.getElementById('newTabPage');
 const urlIcon = document.getElementById('urlIcon');
-const shortcuts = document.querySelectorAll('.shortcut');
-const tabTitle = document.getElementById('tabTitle');
-const tabFavicon = document.getElementById('tabFavicon');
-const searchBox = document.getElementById('searchBox');
+const newTabPageTemplate = document.getElementById('newTabPageTemplate');
 
 let isProtected = true;
 
@@ -26,13 +25,10 @@ let isProtected = true;
 document.addEventListener('DOMContentLoaded', async () => {
   isProtected = await window.ghostAPI.getProtectionStatus();
   updateProtectionUI(isProtected);
-  updateNavButtons();
+  createNewTab();
 });
 
-// Window Controls
-closeBtn.addEventListener('click', () => window.ghostAPI.close());
-minimizeBtn.addEventListener('click', () => window.ghostAPI.minimize());
-maximizeBtn.addEventListener('click', () => window.ghostAPI.maximize());
+// Window Controls - using native macOS traffic lights
 
 // Menu Toggle
 menuBtn.addEventListener('click', (e) => {
@@ -66,8 +62,229 @@ function updateProtectionUI(enabled) {
   }
 }
 
-// URL Navigation
-function navigateTo(url) {
+// Tab Functions
+function createNewTab(url = null) {
+  const tabId = ++tabIdCounter;
+  
+  const tab = {
+    id: tabId,
+    title: 'New Tab',
+    url: url || '',
+    favicon: null,
+    isNewTabPage: !url
+  };
+  
+  tabs.push(tab);
+  
+  // Create tab element
+  const tabEl = document.createElement('div');
+  tabEl.className = 'tab';
+  tabEl.dataset.tabId = tabId;
+  tabEl.innerHTML = `
+    <div class="tab-favicon">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+      </svg>
+    </div>
+    <span class="tab-title">New Tab</span>
+    <button class="tab-close">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+      </svg>
+    </button>
+  `;
+  
+  tabEl.addEventListener('click', (e) => {
+    if (!e.target.closest('.tab-close')) {
+      switchToTab(tabId);
+    }
+  });
+  
+  tabEl.querySelector('.tab-close').addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeTab(tabId);
+  });
+  
+  tabsContainer.appendChild(tabEl);
+  
+  // Create webview
+  const webview = document.createElement('webview');
+  webview.id = `webview-${tabId}`;
+  webview.setAttribute('allowpopups', '');
+  webview.style.display = 'none';
+  
+  // Webview events
+  webview.addEventListener('did-start-loading', () => {
+    if (activeTabId === tabId) {
+      loadingBar.classList.add('loading');
+      loadingBar.classList.remove('complete');
+    }
+  });
+  
+  webview.addEventListener('did-stop-loading', () => {
+    if (activeTabId === tabId) {
+      loadingBar.classList.remove('loading');
+      loadingBar.classList.add('complete');
+      updateNavButtons();
+    }
+  });
+  
+  webview.addEventListener('did-navigate', (e) => {
+    const t = tabs.find(t => t.id === tabId);
+    if (t) {
+      t.url = e.url;
+      t.isNewTabPage = false;
+    }
+    if (activeTabId === tabId) {
+      urlInput.value = e.url;
+      updateUrlIcon(e.url);
+      updateNavButtons();
+    }
+  });
+  
+  webview.addEventListener('did-navigate-in-page', (e) => {
+    const t = tabs.find(t => t.id === tabId);
+    if (t) t.url = e.url;
+    if (activeTabId === tabId) {
+      urlInput.value = e.url;
+      updateUrlIcon(e.url);
+      updateNavButtons();
+    }
+  });
+  
+  webview.addEventListener('page-title-updated', (e) => {
+    const t = tabs.find(t => t.id === tabId);
+    if (t) t.title = e.title;
+    updateTabUI(tabId);
+    if (activeTabId === tabId) {
+      document.title = e.title;
+    }
+  });
+  
+  webview.addEventListener('page-favicon-updated', (e) => {
+    if (e.favicons && e.favicons.length > 0) {
+      const t = tabs.find(t => t.id === tabId);
+      if (t) t.favicon = e.favicons[0];
+      updateTabUI(tabId);
+    }
+  });
+  
+  webviewsContainer.appendChild(webview);
+  
+  // Switch to new tab
+  switchToTab(tabId);
+  
+  // Navigate if URL provided
+  if (url) {
+    navigateInTab(tabId, url);
+  }
+  
+  return tabId;
+}
+
+function switchToTab(tabId) {
+  activeTabId = tabId;
+  const tab = tabs.find(t => t.id === tabId);
+  
+  // Update tab UI
+  document.querySelectorAll('.tab').forEach(el => {
+    el.classList.toggle('active', parseInt(el.dataset.tabId) === tabId);
+  });
+  
+  // Update webview visibility
+  document.querySelectorAll('#webviewsContainer webview').forEach(wv => {
+    wv.classList.remove('active');
+    wv.style.display = 'none';
+  });
+  
+  const webview = document.getElementById(`webview-${tabId}`);
+  
+  // Show/hide new tab page
+  if (tab && tab.isNewTabPage) {
+    newTabPageTemplate.classList.add('active');
+    if (webview) {
+      webview.classList.remove('active');
+      webview.style.display = 'none';
+    }
+    urlInput.value = '';
+    document.title = 'New Tab';
+    updateUrlIcon('');
+    
+    // Focus search input
+    setTimeout(() => {
+      const searchInput = newTabPageTemplate.querySelector('.search-input');
+      if (searchInput) searchInput.focus();
+    }, 100);
+  } else {
+    newTabPageTemplate.classList.remove('active');
+    if (webview) {
+      webview.classList.add('active');
+      webview.style.display = 'flex';
+    }
+    if (tab) {
+      urlInput.value = tab.url;
+      document.title = tab.title;
+      updateUrlIcon(tab.url);
+    }
+  }
+  
+  updateNavButtons();
+}
+
+function closeTab(tabId) {
+  const index = tabs.findIndex(t => t.id === tabId);
+  if (index === -1) return;
+  
+  // Remove tab
+  tabs.splice(index, 1);
+  
+  // Remove tab element
+  const tabEl = document.querySelector(`.tab[data-tab-id="${tabId}"]`);
+  if (tabEl) tabEl.remove();
+  
+  // Remove webview
+  const webview = document.getElementById(`webview-${tabId}`);
+  if (webview) webview.remove();
+  
+  // If no tabs left, create new one
+  if (tabs.length === 0) {
+    createNewTab();
+    return;
+  }
+  
+  // Switch to another tab if this was active
+  if (activeTabId === tabId) {
+    const newIndex = Math.min(index, tabs.length - 1);
+    switchToTab(tabs[newIndex].id);
+  }
+}
+
+function updateTabUI(tabId) {
+  const tab = tabs.find(t => t.id === tabId);
+  const tabEl = document.querySelector(`.tab[data-tab-id="${tabId}"]`);
+  
+  if (!tab || !tabEl) return;
+  
+  const titleEl = tabEl.querySelector('.tab-title');
+  const faviconEl = tabEl.querySelector('.tab-favicon');
+  
+  if (titleEl) titleEl.textContent = tab.title || 'New Tab';
+  
+  if (faviconEl) {
+    if (tab.favicon) {
+      faviconEl.innerHTML = `<img src="${tab.favicon}" alt="">`;
+    } else {
+      faviconEl.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+        </svg>
+      `;
+    }
+  }
+}
+
+function navigateInTab(tabId, url) {
+  // Add protocol if missing
   if (!/^https?:\/\//i.test(url)) {
     if (/^[\w-]+(\.[\w-]+)+/.test(url)) {
       url = 'https://' + url;
@@ -76,123 +293,103 @@ function navigateTo(url) {
     }
   }
   
-  urlInput.value = url;
-  webview.src = url;
-  webview.style.display = 'flex';
-  newTabPage.classList.add('hidden');
+  const tab = tabs.find(t => t.id === tabId);
+  if (tab) {
+    tab.url = url;
+    tab.isNewTabPage = false;
+  }
+  
+  const webview = document.getElementById(`webview-${tabId}`);
+  if (webview) {
+    webview.src = url;
+  }
+  
+  // Update UI
+  if (activeTabId === tabId) {
+    newTabPageTemplate.classList.remove('active');
+    if (webview) {
+      webview.classList.add('active');
+      webview.style.display = 'flex';
+    }
+    urlInput.value = url;
+    updateUrlIcon(url);
+  }
 }
 
+// New Tab Button
+newTabBtn.addEventListener('click', () => {
+  createNewTab();
+});
+
+// URL Input
 urlInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    navigateTo(urlInput.value.trim());
+  if (e.key === 'Enter' && activeTabId) {
+    navigateInTab(activeTabId, urlInput.value.trim());
   }
 });
 
-// Search box on new tab page
-searchInput.addEventListener('keypress', (e) => {
-  if (e.key === 'Enter') {
-    navigateTo(searchInput.value.trim());
+// Search input in new tab page
+document.addEventListener('keypress', (e) => {
+  if (e.target.classList.contains('search-input') && e.key === 'Enter' && activeTabId) {
+    navigateInTab(activeTabId, e.target.value.trim());
   }
-});
-
-searchInput.addEventListener('focus', () => {
-  searchBox.style.boxShadow = '0 1px 6px rgba(32, 33, 36, 0.28)';
-});
-
-searchInput.addEventListener('blur', () => {
-  searchBox.style.boxShadow = '';
 });
 
 // Shortcuts
-shortcuts.forEach(shortcut => {
-  shortcut.addEventListener('click', () => {
+document.addEventListener('click', (e) => {
+  const shortcut = e.target.closest('.shortcut');
+  if (shortcut && activeTabId) {
     const url = shortcut.dataset.url;
-    navigateTo(url);
-  });
+    navigateInTab(activeTabId, url);
+  }
 });
 
 // Navigation Buttons
 backBtn.addEventListener('click', () => {
-  if (webview.canGoBack()) {
-    webview.goBack();
+  if (activeTabId) {
+    const webview = document.getElementById(`webview-${activeTabId}`);
+    if (webview && webview.canGoBack()) {
+      webview.goBack();
+    }
   }
 });
 
 forwardBtn.addEventListener('click', () => {
-  if (webview.canGoForward()) {
-    webview.goForward();
+  if (activeTabId) {
+    const webview = document.getElementById(`webview-${activeTabId}`);
+    if (webview && webview.canGoForward()) {
+      webview.goForward();
+    }
   }
 });
 
 reloadBtn.addEventListener('click', () => {
-  if (webview.style.display !== 'none') {
-    webview.reload();
+  if (activeTabId) {
+    const tab = tabs.find(t => t.id === activeTabId);
+    if (tab && !tab.isNewTabPage) {
+      const webview = document.getElementById(`webview-${activeTabId}`);
+      if (webview) webview.reload();
+    }
   }
 });
 
 homeBtn.addEventListener('click', () => {
-  webview.style.display = 'none';
-  newTabPage.classList.remove('hidden');
-  urlInput.value = '';
-  tabTitle.textContent = 'New Tab';
-  document.title = 'New Tab';
-  resetTabFavicon();
-  updateNavButtons();
-});
-
-// Webview Events
-webview.addEventListener('did-start-loading', () => {
-  loadingBar.classList.add('loading');
-  loadingBar.classList.remove('complete');
-});
-
-webview.addEventListener('did-stop-loading', () => {
-  loadingBar.classList.remove('loading');
-  loadingBar.classList.add('complete');
-  updateNavButtons();
-});
-
-webview.addEventListener('did-navigate', (e) => {
-  urlInput.value = e.url;
-  updateUrlIcon(e.url);
-  updateNavButtons();
-});
-
-webview.addEventListener('did-navigate-in-page', (e) => {
-  urlInput.value = e.url;
-  updateUrlIcon(e.url);
-  updateNavButtons();
-});
-
-webview.addEventListener('page-title-updated', (e) => {
-  document.title = e.title;
-  tabTitle.textContent = e.title;
-});
-
-webview.addEventListener('page-favicon-updated', (e) => {
-  if (e.favicons && e.favicons.length > 0) {
-    tabFavicon.innerHTML = `<img src="${e.favicons[0]}" style="width:16px;height:16px;border-radius:2px;">`;
+  if (activeTabId) {
+    const tab = tabs.find(t => t.id === activeTabId);
+    if (tab) {
+      tab.isNewTabPage = true;
+      tab.title = 'New Tab';
+      tab.url = '';
+      tab.favicon = null;
+      updateTabUI(activeTabId);
+      switchToTab(activeTabId);
+    }
   }
 });
 
-webview.addEventListener('did-fail-load', (e) => {
-  if (e.errorCode !== -3) {
-    loadingBar.classList.remove('loading');
-    loadingBar.classList.add('complete');
-  }
-});
-
-function resetTabFavicon() {
-  tabFavicon.innerHTML = `
-    <svg viewBox="0 0 24 24" fill="currentColor">
-      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-    </svg>
-  `;
-}
-
-// Update URL icon for secure/insecure
+// Update URL icon
 function updateUrlIcon(url) {
-  if (url.startsWith('https://')) {
+  if (url && url.startsWith('https://')) {
     urlIcon.innerHTML = `
       <svg viewBox="0 0 24 24" fill="currentColor">
         <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
@@ -207,52 +404,98 @@ function updateUrlIcon(url) {
   }
 }
 
-// Update navigation button states
+// Update navigation buttons state
 function updateNavButtons() {
-  if (webview.style.display === 'none') {
+  if (!activeTabId) {
     backBtn.disabled = true;
     forwardBtn.disabled = true;
-  } else {
+    return;
+  }
+  
+  const tab = tabs.find(t => t.id === activeTabId);
+  if (tab && tab.isNewTabPage) {
+    backBtn.disabled = true;
+    forwardBtn.disabled = true;
+    return;
+  }
+  
+  const webview = document.getElementById(`webview-${activeTabId}`);
+  if (webview) {
     backBtn.disabled = !webview.canGoBack();
     forwardBtn.disabled = !webview.canGoForward();
+  } else {
+    backBtn.disabled = true;
+    forwardBtn.disabled = true;
   }
 }
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
+  // Cmd/Ctrl + T for new tab
+  if ((e.metaKey || e.ctrlKey) && e.key === 't') {
+    e.preventDefault();
+    createNewTab();
+  }
+  
+  // Cmd/Ctrl + W to close tab
+  if ((e.metaKey || e.ctrlKey) && e.key === 'w') {
+    e.preventDefault();
+    if (activeTabId) {
+      closeTab(activeTabId);
+    }
+  }
+  
+  // Cmd/Ctrl + L to focus URL bar
   if ((e.metaKey || e.ctrlKey) && e.key === 'l') {
     e.preventDefault();
     urlInput.focus();
     urlInput.select();
   }
   
+  // Cmd/Ctrl + R to reload
   if ((e.metaKey || e.ctrlKey) && e.key === 'r') {
     e.preventDefault();
-    if (webview.style.display !== 'none') {
-      webview.reload();
+    if (activeTabId) {
+      const tab = tabs.find(t => t.id === activeTabId);
+      if (tab && !tab.isNewTabPage) {
+        const webview = document.getElementById(`webview-${activeTabId}`);
+        if (webview) webview.reload();
+      }
     }
   }
   
+  // Escape to close settings
   if (e.key === 'Escape') {
     settingsDropdown.classList.remove('open');
   }
   
+  // Alt + Left/Right for navigation
   if (e.altKey && e.key === 'ArrowLeft') {
     e.preventDefault();
-    if (webview.canGoBack()) {
-      webview.goBack();
+    if (activeTabId) {
+      const webview = document.getElementById(`webview-${activeTabId}`);
+      if (webview && webview.canGoBack()) {
+        webview.goBack();
+      }
     }
   }
   
   if (e.altKey && e.key === 'ArrowRight') {
     e.preventDefault();
-    if (webview.canGoForward()) {
-      webview.goForward();
+    if (activeTabId) {
+      const webview = document.getElementById(`webview-${activeTabId}`);
+      if (webview && webview.canGoForward()) {
+        webview.goForward();
+      }
+    }
+  }
+  
+  // Cmd/Ctrl + 1-9 to switch tabs
+  if ((e.metaKey || e.ctrlKey) && e.key >= '1' && e.key <= '9') {
+    e.preventDefault();
+    const index = parseInt(e.key) - 1;
+    if (index < tabs.length) {
+      switchToTab(tabs[index].id);
     }
   }
 });
-
-// Focus search on new tab
-if (newTabPage && !newTabPage.classList.contains('hidden')) {
-  searchInput.focus();
-}
