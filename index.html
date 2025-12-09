@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:;">
+  <title>New Tab</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500&family=Roboto:wght@400;500&display=swap');
+
+    :root {
+      --toolbar-bg: #dee1e6;
+      --toolbar-bg-dark: #35363a;
+      --tab-bg: #fff;
+      --tab-bg-inactive: transparent;
+      --tab-text: #202124;
+      --tab-text-inactive: #5f6368;
+      --url-bg: #f1f3f4;
+      --url-bg-focus: #fff;
+      --url-text: #202124;
+      --url-text-secondary: #5f6368;
+      --border-color: #dadce0;
+      --accent: #1a73e8;
+      --accent-hover: #1967d2;
+      --icon-color: #5f6368;
+      --icon-hover-bg: rgba(95, 99, 104, 0.1);
+      --new-tab-bg: #fff;
+      --shortcut-bg: #fff;
+      --shortcut-hover: #f1f3f4;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--new-tab-bg);
+      color: var(--tab-text);
+      overflow: hidden;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Tab Bar */
+    .tab-bar {
+      -webkit-app-region: drag;
+      height: 34px;
+      background: var(--toolbar-bg);
+      display: flex;
+      align-items: flex-end;
+      padding: 0 8px 0 80px;
+      gap: 0;
+    }
+
+    .tab {
+      -webkit-app-region: no-drag;
+      height: 28px;
+      min-width: 120px;
+      max-width: 240px;
+      background: var(--tab-bg-inactive);
+      border-radius: 8px 8px 0 0;
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      cursor: pointer;
+      position: relative;
+      transition: background 0.1s;
+    }
+
+    .tab.active {
+      background: var(--tab-bg);
+    }
+
+    .tab:not(.active):hover {
+      background: rgba(255, 255, 255, 0.4);
+    }
+
+    .tab-favicon {
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .tab-favicon svg {
+      width: 16px;
+      height: 16px;
+      color: var(--icon-color);
+    }
+
+    .tab-title {
+      flex: 1;
+      font-size: 12px;
+      color: var(--tab-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tab:not(.active) .tab-title {
+      color: var(--tab-text-inactive);
+    }
+
+    .tab-close {
+      width: 16px;
+      height: 16px;
+      border: none;
+      background: transparent;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: all 0.1s;
+    }
+
+    .tab:hover .tab-close {
+      opacity: 1;
+    }
+
+    .tab-close:hover {
+      background: var(--icon-hover-bg);
+    }
+
+    .tab-close svg {
+      width: 14px;
+      height: 14px;
+      color: var(--icon-color);
+    }
+
+    .new-tab-btn {
+      -webkit-app-region: no-drag;
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      margin-left: 4px;
+    }
+
+    .new-tab-btn:hover {
+      background: var(--icon-hover-bg);
+    }
+
+    .new-tab-btn svg {
+      width: 16px;
+      height: 16px;
+      color: var(--icon-color);
+    }
+
+    /* Window Controls (macOS) */
+    .window-controls {
+      -webkit-app-region: no-drag;
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      display: flex;
+      gap: 8px;
+      z-index: 100;
+    }
+
+    .window-btn {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      transition: filter 0.1s;
+    }
+
+    .window-btn.close { background: #ff5f57; }
+    .window-btn.minimize { background: #febc2e; }
+    .window-btn.maximize { background: #28c840; }
+    .window-btn:hover { filter: brightness(1.1); }
+
+    /* Navigation Bar */
+    .nav-bar {
+      height: 40px;
+      background: var(--tab-bg);
+      display: flex;
+      align-items: center;
+      padding: 0 4px;
+      gap: 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .nav-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: transparent;
+      color: var(--icon-color);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.1s;
+    }
+
+    .nav-btn:hover {
+      background: var(--icon-hover-bg);
+    }
+
+    .nav-btn:disabled {
+      opacity: 0.3;
+      cursor: default;
+    }
+
+    .nav-btn:disabled:hover {
+      background: transparent;
+    }
+
+    .nav-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* URL Bar */
+    .url-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      background: var(--url-bg);
+      border-radius: 24px;
+      padding: 0 12px;
+      height: 32px;
+      margin: 0 8px;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .url-container:focus-within {
+      background: var(--url-bg-focus);
+      border-color: var(--border-color);
+      box-shadow: 0 1px 6px rgba(32, 33, 36, 0.18);
+    }
+
+    .url-icon {
+      color: var(--icon-color);
+      margin-right: 8px;
+      display: flex;
+      align-items: center;
+    }
+
+    .url-icon svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .url-icon.secure svg {
+      color: var(--icon-color);
+    }
+
+    .url-input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      color: var(--url-text);
+      font-family: 'Roboto', sans-serif;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .url-input::placeholder {
+      color: var(--url-text-secondary);
+    }
+
+    .url-input::selection {
+      background: #c2dbff;
+    }
+
+    /* Extensions area */
+    .extensions-area {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding-right: 4px;
+    }
+
+    .profile-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      background: linear-gradient(135deg, #4285f4, #34a853, #fbbc05, #ea4335);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    .profile-btn-inner {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .profile-btn svg {
+      width: 18px;
+      height: 18px;
+      color: #5f6368;
+    }
+
+    .menu-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: transparent;
+      color: var(--icon-color);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .menu-btn:hover {
+      background: var(--icon-hover-bg);
+    }
+
+    .menu-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    /* Browser Content */
+    .browser-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      background: var(--new-tab-bg);
+    }
+
+    webview {
+      flex: 1;
+      background: #fff;
+    }
+
+    /* Loading Bar */
+    .loading-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 2px;
+      background: var(--accent);
+      width: 0%;
+      z-index: 100;
+    }
+
+    .loading-bar.loading {
+      animation: loading 1.5s ease-in-out infinite;
+    }
+
+    @keyframes loading {
+      0% { width: 0%; }
+      50% { width: 70%; }
+      100% { width: 90%; }
+    }
+
+    .loading-bar.complete {
+      width: 100%;
+      opacity: 0;
+      transition: width 0.2s ease, opacity 0.3s ease 0.2s;
+    }
+
+    /* New Tab Page */
+    .new-tab-page {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 100px;
+      background: var(--new-tab-bg);
+    }
+
+    .new-tab-page.hidden {
+      display: none;
+    }
+
+    .google-logo {
+      margin-bottom: 32px;
+    }
+
+    .google-logo svg {
+      width: 272px;
+      height: 92px;
+    }
+
+    .search-box {
+      width: 100%;
+      max-width: 584px;
+      height: 46px;
+      background: var(--url-bg-focus);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      margin-bottom: 24px;
+      transition: box-shadow 0.2s;
+    }
+
+    .search-box:hover,
+    .search-box:focus-within {
+      box-shadow: 0 1px 6px rgba(32, 33, 36, 0.18);
+      border-color: transparent;
+    }
+
+    .search-box svg {
+      width: 20px;
+      height: 20px;
+      color: #9aa0a6;
+      margin-right: 12px;
+    }
+
+    .search-box input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-size: 16px;
+      color: var(--url-text);
+      outline: none;
+    }
+
+    .search-box input::placeholder {
+      color: #9aa0a6;
+    }
+
+    /* Shortcuts */
+    .shortcuts {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      max-width: 620px;
+      margin-top: 16px;
+    }
+
+    .shortcut {
+      width: 112px;
+      height: 112px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.1s;
+      text-decoration: none;
+    }
+
+    .shortcut:hover {
+      background: var(--shortcut-hover);
+    }
+
+    .shortcut-icon {
+      width: 48px;
+      height: 48px;
+      background: var(--shortcut-bg);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .shortcut-icon img {
+      width: 24px;
+      height: 24px;
+      border-radius: 2px;
+    }
+
+    .shortcut-name {
+      font-size: 13px;
+      color: var(--tab-text);
+      text-align: center;
+      max-width: 100px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Settings dropdown */
+    .settings-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      width: 200px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      padding: 8px 0;
+      display: none;
+      z-index: 1000;
+    }
+
+    .settings-dropdown.open {
+      display: block;
+    }
+
+    .settings-item {
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .settings-item:hover {
+      background: var(--shortcut-hover);
+    }
+
+    .toggle-switch {
+      width: 36px;
+      height: 20px;
+      background: #dadce0;
+      border-radius: 10px;
+      position: relative;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .toggle-switch.active {
+      background: var(--accent);
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      background: white;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: left 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    .toggle-switch.active::after {
+      left: 18px;
+    }
+
+    .menu-wrapper {
+      position: relative;
+    }
+  </style>
+</head>
+<body>
+  <!-- Window Controls -->
+  <div class="window-controls">
+    <button class="window-btn close" id="closeBtn"></button>
+    <button class="window-btn minimize" id="minimizeBtn"></button>
+    <button class="window-btn maximize" id="maximizeBtn"></button>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="tab-bar">
+    <div class="tab active" id="currentTab">
+      <div class="tab-favicon" id="tabFavicon">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+        </svg>
+      </div>
+      <span class="tab-title" id="tabTitle">New Tab</span>
+      <button class="tab-close">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+        </svg>
+      </button>
+    </div>
+    <button class="new-tab-btn" title="New Tab">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Navigation Bar -->
+  <div class="nav-bar">
+    <button class="nav-btn" id="backBtn" title="Back">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+      </svg>
+    </button>
+    <button class="nav-btn" id="forwardBtn" title="Forward">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z"/>
+      </svg>
+    </button>
+    <button class="nav-btn" id="reloadBtn" title="Reload">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+      </svg>
+    </button>
+    <button class="nav-btn" id="homeBtn" title="Home">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/>
+      </svg>
+    </button>
+
+    <div class="url-container">
+      <div class="url-icon" id="urlIcon">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+        </svg>
+      </div>
+      <input type="text" class="url-input" id="urlInput" placeholder="Search Google or type a URL" autocomplete="off" spellcheck="false">
+    </div>
+
+    <div class="extensions-area">
+      <button class="profile-btn" title="Profile">
+        <div class="profile-btn-inner">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"/>
+          </svg>
+        </div>
+      </button>
+      <div class="menu-wrapper">
+        <button class="menu-btn" id="menuBtn" title="More">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+          </svg>
+        </button>
+        <div class="settings-dropdown" id="settingsDropdown">
+          <div class="settings-item">
+            <span>Screen protection</span>
+            <div class="toggle-switch active" id="protectionToggle"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Browser Content -->
+  <div class="browser-content">
+    <div class="loading-bar" id="loadingBar"></div>
+    
+    <!-- New Tab Page -->
+    <div class="new-tab-page" id="newTabPage">
+      <div class="google-logo">
+        <svg viewBox="0 0 272 92" xmlns="http://www.w3.org/2000/svg">
+          <path d="M115.75 47.18c0 12.77-9.99 22.18-22.25 22.18s-22.25-9.41-22.25-22.18C71.25 34.32 81.24 25 93.5 25s22.25 9.32 22.25 22.18zm-9.74 0c0-7.98-5.79-13.44-12.51-13.44S80.99 39.2 80.99 47.18c0 7.9 5.79 13.44 12.51 13.44s12.51-5.55 12.51-13.44z" fill="#EA4335"/>
+          <path d="M163.75 47.18c0 12.77-9.99 22.18-22.25 22.18s-22.25-9.41-22.25-22.18c0-12.85 9.99-22.18 22.25-22.18s22.25 9.32 22.25 22.18zm-9.74 0c0-7.98-5.79-13.44-12.51-13.44s-12.51 5.46-12.51 13.44c0 7.9 5.79 13.44 12.51 13.44s12.51-5.55 12.51-13.44z" fill="#FBBC05"/>
+          <path d="M209.75 26.34v39.82c0 16.38-9.66 23.07-21.08 23.07-10.75 0-17.22-7.19-19.66-13.07l8.48-3.53c1.51 3.61 5.21 7.87 11.17 7.87 7.31 0 11.84-4.51 11.84-13v-3.19h-.34c-2.18 2.69-6.38 5.04-11.68 5.04-11.09 0-21.25-9.66-21.25-22.09 0-12.52 10.16-22.26 21.25-22.26 5.29 0 9.49 2.35 11.68 4.96h.34v-3.61h9.25zm-8.56 20.92c0-7.81-5.21-13.52-11.84-13.52-6.72 0-12.35 5.71-12.35 13.52 0 7.73 5.63 13.36 12.35 13.36 6.63 0 11.84-5.63 11.84-13.36z" fill="#4285F4"/>
+          <path d="M225 3v65h-9.5V3h9.5z" fill="#34A853"/>
+          <path d="M262.02 54.48l7.56 5.04c-2.44 3.61-8.32 9.83-18.48 9.83-12.6 0-22.01-9.74-22.01-22.18 0-13.19 9.49-22.18 20.92-22.18 11.51 0 17.14 9.16 18.98 14.11l1.01 2.52-29.65 12.28c2.27 4.45 5.8 6.72 10.75 6.72 4.96 0 8.4-2.44 10.92-6.14zm-23.27-7.98l19.82-8.23c-1.09-2.77-4.37-4.7-8.23-4.7-4.95 0-11.84 4.37-11.59 12.93z" fill="#EA4335"/>
+          <path d="M35.29 41.41V32H67c.31 1.64.47 3.58.47 5.68 0 7.06-1.93 15.79-8.15 22.01-6.05 6.3-13.78 9.66-24.02 9.66C16.32 69.35.36 53.89.36 34.91.36 15.93 16.32.47 35.3.47c10.5 0 17.98 4.12 23.6 9.49l-6.64 6.64c-4.03-3.78-9.49-6.72-16.97-6.72-13.86 0-24.7 11.17-24.7 25.03 0 13.86 10.84 25.03 24.7 25.03 8.99 0 14.11-3.61 17.39-6.89 2.66-2.66 4.41-6.46 5.1-11.65l-22.49.01z" fill="#4285F4"/>
+        </svg>
+      </div>
+      
+      <div class="search-box" id="searchBox">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+        </svg>
+        <input type="text" id="searchInput" placeholder="Search Google or type a URL">
+      </div>
+
+      <div class="shortcuts">
+        <div class="shortcut" data-url="https://mail.google.com">
+          <div class="shortcut-icon">
+            <img src="https://www.google.com/favicon.ico" alt="" onerror="this.style.display='none'">
+          </div>
+          <span class="shortcut-name">Gmail</span>
+        </div>
+        <div class="shortcut" data-url="https://youtube.com">
+          <div class="shortcut-icon">
+            <img src="https://www.youtube.com/favicon.ico" alt="" onerror="this.style.display='none'">
+          </div>
+          <span class="shortcut-name">YouTube</span>
+        </div>
+        <div class="shortcut" data-url="https://drive.google.com">
+          <div class="shortcut-icon">
+            <img src="https://www.google.com/favicon.ico" alt="" onerror="this.style.display='none'">
+          </div>
+          <span class="shortcut-name">Drive</span>
+        </div>
+        <div class="shortcut" data-url="https://maps.google.com">
+          <div class="shortcut-icon">
+            <img src="https://www.google.com/favicon.ico" alt="" onerror="this.style.display='none'">
+          </div>
+          <span class="shortcut-name">Maps</span>
+        </div>
+        <div class="shortcut" data-url="https://news.google.com">
+          <div class="shortcut-icon">
+            <img src="https://www.google.com/favicon.ico" alt="" onerror="this.style.display='none'">
+          </div>
+          <span class="shortcut-name">News</span>
+        </div>
+        <div class="shortcut" data-url="https://translate.google.com">
+          <div class="shortcut-icon">
+            <img src="https://www.google.com/favicon.ico" alt="" onerror="this.style.display='none'">
+          </div>
+          <span class="shortcut-name">Translate</span>
+        </div>
+        <div class="shortcut" data-url="https://calendar.google.com">
+          <div class="shortcut-icon">
+            <img src="https://www.google.com/favicon.ico" alt="" onerror="this.style.display='none'">
+          </div>
+          <span class="shortcut-name">Calendar</span>
+        </div>
+        <div class="shortcut" data-url="https://photos.google.com">
+          <div class="shortcut-icon">
+            <img src="https://www.google.com/favicon.ico" alt="" onerror="this.style.display='none'">
+          </div>
+          <span class="shortcut-name">Photos</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Webview -->
+    <webview id="webview" style="display: none;" allowpopups></webview>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>

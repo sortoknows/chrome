@@ -1,0 +1,29 @@
+{
+  "name": "chrome",
+  "version": "1.0.0",
+  "description": "Chrome Browser",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.google.Chrome",
+    "productName": "Chrome",
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": "dmg",
+      "icon": "build/icon.icns"
+    },
+    "directories": {
+      "output": "dist"
+    }
+  }
+}
