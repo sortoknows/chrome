@@ -25,7 +25,7 @@ let isProtected = true;
 document.addEventListener('DOMContentLoaded', async () => {
   isProtected = await window.ghostAPI.getProtectionStatus();
   updateProtectionUI(isProtected);
-  createNewTab();
+  createNewTab('https://app.slack.com');
 });
 
 // Window Controls - using native macOS traffic lights
@@ -111,7 +111,33 @@ function createNewTab(url = null) {
   const webview = document.createElement('webview');
   webview.id = `webview-${tabId}`;
   webview.setAttribute('allowpopups', '');
+  webview.setAttribute('useragent', 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36');
+  webview.setAttribute('partition', 'persist:browser');
   webview.style.display = 'none';
+  
+  // Inject Chrome spoofing when DOM is ready
+  webview.addEventListener('dom-ready', () => {
+    webview.executeJavaScript(`
+      Object.defineProperty(navigator, 'webdriver', { get: () => false });
+      window.chrome = {
+        runtime: { connect: () => {}, sendMessage: () => {}, onMessage: { addListener: () => {}, removeListener: () => {} } },
+        csi: () => {}, loadTimes: () => {},
+        app: { isInstalled: false, getDetails: () => null, getIsInstalled: () => false, runningState: () => 'cannot_run' },
+      };
+      Object.defineProperty(navigator, 'vendor', { get: () => 'Google Inc.' });
+      Object.defineProperty(navigator, 'plugins', {
+        get: () => {
+          const p = [
+            { name: 'Chrome PDF Plugin', description: 'PDF', filename: 'internal-pdf-viewer', length: 1 },
+            { name: 'Chrome PDF Viewer', description: '', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', length: 1 },
+          ];
+          p.refresh = () => {};
+          return p;
+        },
+      });
+      Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+    `).catch(() => {});
+  });
   
   // Webview events
   webview.addEventListener('did-start-loading', () => {
@@ -166,6 +192,21 @@ function createNewTab(url = null) {
       const t = tabs.find(t => t.id === tabId);
       if (t) t.favicon = e.favicons[0];
       updateTabUI(tabId);
+    }
+  });
+  
+  // Handle new window requests (OAuth popups, etc.)
+  webview.addEventListener('new-window', (e) => {
+    e.preventDefault();
+    const url = e.url;
+    
+    // Check if it's an OAuth callback that should stay in the app
+    if (url.includes('slack.com')) {
+      // Navigate in the current tab for Slack URLs
+      navigateInTab(tabId, url);
+    } else {
+      // Open external links in new tab
+      createNewTab(url);
     }
   });
   
