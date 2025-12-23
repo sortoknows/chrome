@@ -3,6 +3,9 @@ let tabs = [];
 let activeTabId = null;
 let tabIdCounter = 0;
 
+// Bookmarks
+let bookmarks = JSON.parse(localStorage.getItem('bookmarks') || '[]');
+
 // DOM Elements
 const tabsContainer = document.getElementById('tabsContainer');
 const webviewsContainer = document.getElementById('webviewsContainer');
@@ -18,6 +21,10 @@ const protectionToggle = document.getElementById('protectionToggle');
 const loadingBar = document.getElementById('loadingBar');
 const urlIcon = document.getElementById('urlIcon');
 const newTabPageTemplate = document.getElementById('newTabPageTemplate');
+const bookmarkBtn = document.getElementById('bookmarkBtn');
+const bookmarksBtn = document.getElementById('bookmarksBtn');
+const bookmarksPanel = document.getElementById('bookmarksPanel');
+const bookmarksList = document.getElementById('bookmarksList');
 
 let isProtected = true;
 
@@ -34,6 +41,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 menuBtn.addEventListener('click', (e) => {
   e.stopPropagation();
   settingsDropdown.classList.toggle('open');
+  bookmarksPanel.classList.remove('open');
 });
 
 document.addEventListener('click', (e) => {
@@ -165,6 +173,7 @@ function createNewTab(url = null) {
       urlInput.value = e.url;
       updateUrlIcon(e.url);
       updateNavButtons();
+      updateBookmarkButton();
     }
   });
   
@@ -175,6 +184,7 @@ function createNewTab(url = null) {
       urlInput.value = e.url;
       updateUrlIcon(e.url);
       updateNavButtons();
+      updateBookmarkButton();
     }
   });
   
@@ -270,6 +280,7 @@ function switchToTab(tabId) {
   }
   
   updateNavButtons();
+  updateBookmarkButton();
 }
 
 function closeTab(tabId) {
@@ -539,4 +550,142 @@ document.addEventListener('keydown', (e) => {
       switchToTab(tabs[index].id);
     }
   }
+  
+  // Cmd/Ctrl + D to bookmark
+  if ((e.metaKey || e.ctrlKey) && e.key === 'd') {
+    e.preventDefault();
+    toggleBookmark();
+  }
 });
+
+// Bookmark Functions
+function saveBookmarks() {
+  localStorage.setItem('bookmarks', JSON.stringify(bookmarks));
+}
+
+function isBookmarked(url) {
+  return bookmarks.some(b => b.url === url);
+}
+
+function toggleBookmark() {
+  if (!activeTabId) return;
+  
+  const tab = tabs.find(t => t.id === activeTabId);
+  if (!tab || tab.isNewTabPage || !tab.url) return;
+  
+  const existingIndex = bookmarks.findIndex(b => b.url === tab.url);
+  
+  if (existingIndex >= 0) {
+    // Remove bookmark
+    bookmarks.splice(existingIndex, 1);
+  } else {
+    // Add bookmark
+    bookmarks.push({
+      url: tab.url,
+      title: tab.title || tab.url,
+      favicon: tab.favicon,
+      addedAt: Date.now()
+    });
+  }
+  
+  saveBookmarks();
+  updateBookmarkButton();
+  renderBookmarks();
+}
+
+function updateBookmarkButton() {
+  if (!activeTabId) {
+    bookmarkBtn.classList.remove('bookmarked');
+    return;
+  }
+  
+  const tab = tabs.find(t => t.id === activeTabId);
+  if (!tab || tab.isNewTabPage || !tab.url) {
+    bookmarkBtn.classList.remove('bookmarked');
+    return;
+  }
+  
+  if (isBookmarked(tab.url)) {
+    bookmarkBtn.classList.add('bookmarked');
+    bookmarkBtn.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+      </svg>
+    `;
+  } else {
+    bookmarkBtn.classList.remove('bookmarked');
+    bookmarkBtn.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+      </svg>
+    `;
+  }
+}
+
+function renderBookmarks() {
+  if (bookmarks.length === 0) {
+    bookmarksList.innerHTML = '<div class="bookmarks-empty">No bookmarks yet</div>';
+    return;
+  }
+  
+  bookmarksList.innerHTML = bookmarks.map((bookmark, index) => `
+    <div class="bookmark-item" data-index="${index}" data-url="${bookmark.url}">
+      <div class="bookmark-item-favicon">
+        ${bookmark.favicon 
+          ? `<img src="${bookmark.favicon}" alt="">` 
+          : `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>`
+        }
+      </div>
+      <div class="bookmark-item-info">
+        <div class="bookmark-item-title">${bookmark.title}</div>
+        <div class="bookmark-item-url">${bookmark.url}</div>
+      </div>
+      <button class="bookmark-item-delete" data-index="${index}" title="Remove">
+        <svg viewBox="0 0 24 24" fill="currentColor">
+          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+        </svg>
+      </button>
+    </div>
+  `).join('');
+}
+
+function deleteBookmark(index) {
+  bookmarks.splice(index, 1);
+  saveBookmarks();
+  updateBookmarkButton();
+  renderBookmarks();
+}
+
+// Bookmark event listeners
+bookmarkBtn.addEventListener('click', toggleBookmark);
+
+bookmarksBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  bookmarksPanel.classList.toggle('open');
+  settingsDropdown.classList.remove('open');
+});
+
+bookmarksList.addEventListener('click', (e) => {
+  const deleteBtn = e.target.closest('.bookmark-item-delete');
+  if (deleteBtn) {
+    e.stopPropagation();
+    const index = parseInt(deleteBtn.dataset.index);
+    deleteBookmark(index);
+    return;
+  }
+  
+  const item = e.target.closest('.bookmark-item');
+  if (item && activeTabId) {
+    navigateInTab(activeTabId, item.dataset.url);
+    bookmarksPanel.classList.remove('open');
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (!bookmarksPanel.contains(e.target) && e.target !== bookmarksBtn) {
+    bookmarksPanel.classList.remove('open');
+  }
+});
+
+// Initialize bookmarks
+renderBookmarks();

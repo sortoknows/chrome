@@ -580,6 +580,159 @@
     .menu-wrapper {
       position: relative;
     }
+
+    /* Bookmark button */
+    .bookmark-btn {
+      width: 28px;
+      height: 28px;
+      border: none;
+      background: transparent;
+      color: var(--icon-color);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 8px;
+    }
+
+    .bookmark-btn:hover {
+      background: var(--icon-hover-bg);
+    }
+
+    .bookmark-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .bookmark-btn.bookmarked svg {
+      fill: #fbbc05;
+      color: #fbbc05;
+    }
+
+    /* Bookmarks panel */
+    .bookmarks-panel {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      width: 320px;
+      max-height: 400px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      display: none;
+      z-index: 1000;
+      overflow: hidden;
+    }
+
+    .bookmarks-panel.open {
+      display: block;
+    }
+
+    .bookmarks-header {
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .bookmarks-list {
+      max-height: 340px;
+      overflow-y: auto;
+    }
+
+    .bookmark-item {
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      gap: 12px;
+      transition: background 0.1s;
+    }
+
+    .bookmark-item:hover {
+      background: var(--shortcut-hover);
+    }
+
+    .bookmark-item-favicon {
+      width: 20px;
+      height: 20px;
+      min-width: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .bookmark-item-favicon img {
+      width: 16px;
+      height: 16px;
+      border-radius: 2px;
+    }
+
+    .bookmark-item-favicon svg {
+      width: 16px;
+      height: 16px;
+      color: var(--icon-color);
+    }
+
+    .bookmark-item-info {
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .bookmark-item-title {
+      font-size: 13px;
+      color: var(--tab-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bookmark-item-url {
+      font-size: 11px;
+      color: var(--url-text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bookmark-item-delete {
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: transparent;
+      color: var(--icon-color);
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.1s;
+    }
+
+    .bookmark-item:hover .bookmark-item-delete {
+      opacity: 1;
+    }
+
+    .bookmark-item-delete:hover {
+      background: var(--icon-hover-bg);
+    }
+
+    .bookmark-item-delete svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .bookmarks-empty {
+      padding: 32px 16px;
+      text-align: center;
+      color: var(--url-text-secondary);
+      font-size: 13px;
+    }
   </style>
 </head>
 <body>
@@ -625,9 +778,29 @@
         </svg>
       </div>
       <input type="text" class="url-input" id="urlInput" placeholder="Search Google or type a URL" autocomplete="off" spellcheck="false">
+      <button class="bookmark-btn" id="bookmarkBtn" title="Bookmark this page">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+      </button>
     </div>
 
     <div class="extensions-area">
+      <div class="menu-wrapper">
+        <button class="nav-btn" id="bookmarksBtn" title="Bookmarks">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/>
+          </svg>
+        </button>
+        <div class="bookmarks-panel" id="bookmarksPanel">
+          <div class="bookmarks-header">
+            <span>Bookmarks</span>
+          </div>
+          <div class="bookmarks-list" id="bookmarksList">
+            <div class="bookmarks-empty">No bookmarks yet</div>
+          </div>
+        </div>
+      </div>
       <button class="profile-btn" title="Profile">
         <div class="profile-btn-inner">
           <svg viewBox="0 0 24 24" fill="currentColor">
